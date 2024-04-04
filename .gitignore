@@ -1,0 +1,4 @@
+.data/
+.DS_Store
+secrets.yaml
+.ipynb_checkpoints/
