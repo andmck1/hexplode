@@ -1,122 +1,139 @@
+import numpy as np
+import pandas as pd
+import networkx as nx
+
+
+class HexCellNode(nx.Graph):
+    default_cell_dict = {"count": 0, "player": None}
+
+    def init_node_attr(self):
+        return self.default_cell_dict.copy()
+
+    node_attr_dict_factory = init_node_attr
+
+
 class Hexplode:
-    def __init__(self, size=4):
+    def __init__(self, size=2):
         self.size = size
-        self.board = self.initialize_board()
+        self.board_graph = self.initialise_board_graph()
         self.players = ["Player 1", "Player 2"]
         self.current_player = 0
 
-    def initialize_board(self):
-        board = []
-        max_width = 2 * self.size - 1
-        for i in range(max_width):
-            width = self.size + min(i, max_width - i - 1)
-            row = [{"count": 0, "player": None} for _ in range(width)]
-            board.append(row)
-        return board
+    @staticmethod
+    def hexagonal_coordinates(n):
+        """
+        Generate all coordinates for a hexagonal board with side length n.
+        """
+        for x in range(-n + 1, n):
+            for y in range(max(-n + 1, -x - n + 1), min(n, -x + n)):
+                z = -x - y
+                yield (x, y, z)
+
+    @staticmethod
+    def hexagonal_neighbors(x, y, z):
+        """Yield the neighbors of a given hexagon cell in cube coordinates."""
+        # Six possible directions for a hex cell
+        directions = [
+            (+1, -1, 0),
+            (+1, 0, -1),
+            (0, +1, -1),
+            (-1, +1, 0),
+            (-1, 0, +1),
+            (0, -1, +1),
+        ]
+        for dx, dy, dz in directions:
+            yield (x + dx, y + dy, z + dz)
+
+    @staticmethod
+    def cubic_to_pixel(x, y, z):
+        return (x - y, -x - y)
+
+    @staticmethod
+    def pixel_to_array(x, y, n):
+        return x + n, y + n
+
+    def create_hexagonal_board(self):
+        """Create a DataFrame representing the edges of a hexagonal board."""
+        size = self.size
+        coords = list(self.hexagonal_coordinates(size))
+        edges = []
+        seen = set()
+
+        for x, y, z in coords:
+            for node_x, node_y, node_z in self.hexagonal_neighbors(x, y, z):
+                if (node_x, node_y, node_z) in coords:
+                    edge = tuple(sorted([(x, y, z), (node_x, node_y, node_z)]))
+                    if edge not in seen:
+                        seen.add(edge)
+                        edges.append(edge)
+
+        # Creating DataFrame from edges list
+        edge_df = pd.DataFrame(edges, columns=["source", "target"])
+        return edge_df
+
+    def initialise_board_graph(self):
+        df_edges = self.create_hexagonal_board()
+        g = nx.from_pandas_edgelist(df_edges, create_using=HexCellNode)
+        return g
 
     def display_board(self):
-        max_width = len(max(self.board, key=len))
-        for i, row in enumerate(self.board):
-            offset = " " * (max_width - len(row))
-            print(offset + " ".join(str(cell["count"]) for cell in row))
-        print()
-
-    def get_neighbors(self, x, y):
-        """
-        board:
-             0 0 0 0
-            0 0 0 0 0
-           0 0 0 0 0 0
-          0 0 1 1 0 0 0
-           0 1 1 1 0 0
-            0 1 1 0 0
-             0 0 0 0
-
-        if (3,1) then neighbours are
-        (2,0) = (+1, -1)
-        (2,1) = (+1,  0)
-        (3,0) = ( 0, -1)
-        (3,2) = ( 0, +1)
-        (4,0) = (+1, -1)
-        (4,1) = (+1,  0)
-
-
-        if (4,2) then neighbours are
-        (3,2), (3,3), (4,1), (4,3), (5,1), (5,2)
-
-        stored board:
-        0 0 0 0
-        0 0 0 0 0
-        0 0 0 0 0 0
-        0 0 1 1 0 0 0
-        0 1 1 1 0 0
-        0 1 1 0 0
-        0 0 0 0
-
-        -1/1 = up/down or left/right
-
-        if row is even then check:
-            up, up right, left, down, down left, right
-        if row is odd:
-            up, up left, left, right, down right, down
-        """
-        neighbors = []
-
-        # if x even, select
-        if x % 2 == 0:
-            directions = [(-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0)]
-        else:
-            directions = [(-1, 0), (-1, -1), (0, -1), (0, 1), (1, 1), (1, 0)]
-        for dx, dy in directions:
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < len(self.board) and 0 <= ny < len(self.board[nx]):
-                neighbors.append((nx, ny))
-        return neighbors
-
-    def explode(self, x, y):
-        neighbors = self.get_neighbors(x, y)
-        for nx, ny in neighbors:
-            self.board[nx][ny]["count"] += 1
-            self.board[nx][ny]["player"] = self.players[self.current_player]
-            if self.board[nx][ny]["count"] > len(neighbors):
-                self.explode(nx, ny)
-
-    def valid_move(self, x, y, player):
-        return (
-            0 <= x < len(self.board)
-            and 0 <= y < len(self.board[x])
-            and (
-                self.board[x][y]["player"] is None
-                or self.board[x][y]["player"] == player
-            )
+        g = self.board_graph
+        size = self.size
+        cubic_nodes = g.nodes()
+        node_data = list(g.nodes(data=True))
+        pixel_nodes = list(map(lambda x: self.cubic_to_pixel(*x), cubic_nodes))
+        array_nodes = list(
+            map(lambda x: self.pixel_to_array(*x, size), pixel_nodes)
         )
 
-    def make_move(self, x, y):
-        if self.valid_move(x, y, self.players[self.current_player]):
-            self.board[x][y]["count"] += 1
-            self.board[x][y]["player"] = self.players[self.current_player]
-            if self.board[x][y]["count"] > len(self.get_neighbors(x, y)):
-                self.explode(x, y)
+        board = np.full((size * 2 + 1, size * 2 + 1), fill_value=".")
+        for i, (x, y) in enumerate(array_nodes):
+            board[x, y - 1] = "|"
+            board[x, y + 1] = "|"
+            board[x, y] = node_data[i][1]["count"]
+
+        for row in board:
+            for val in row:
+                print(val, end=" ")
+            print()
+
+    def explode(self, node):
+        g = self.board_graph
+        neighbours = g[node]
+        for neighbour_node in neighbours:
+            print(neighbour_node)
+            g.nodes(data=True)[neighbour_node]["count"] += 1
+            g.nodes(data=True)[neighbour_node]["player"] = self.players[
+                self.current_player
+            ]
+            neighbour_node_neighbours = g.nodes[neighbour_node]
+            if g.nodes(data=True)[neighbour_node]["count"] > len(
+                neighbour_node_neighbours
+            ):
+                self.explode(neighbour_node)
+
+    def valid_move(self, node, player):
+        g = self.board_graph
+        is_valid_node = node in g.nodes()
+        if not is_valid_node:
+            return 0
+        node_player = g.nodes(data=True)[node]["player"]
+        print(node_player)
+        is_valid_player = (node_player is None) or (node_player == player)
+        if not is_valid_player:
+            return 0
+        return 1
+
+    def make_move(self, node):
+        player = self.players[self.current_player]
+        g = self.board_graph
+        if self.valid_move(node, player):
+            g.nodes(data=True)[node]["count"] += 1
+            g.nodes(data=True)[node]["player"] = player
+            neighbours = g[node]
+            if g.nodes(data=True)[node]["count"] > len(neighbours):
+                g.nodes(data=True)[node]["count"] = 1
+                self.explode(node)
             self.current_player = (self.current_player + 1) % 2
         else:
-            print("Invalid move!")
-
-    def play(self):
-        while True:
-            self.display_board()
-            try:
-                x, y = map(
-                    int,
-                    input(
-                        f"{self.players[self.current_player]}'s turn "
-                        "(enter x y): "
-                    ).split(),
-                )
-                self.make_move(x, y)
-            except ValueError:
-                print("Please enter valid coordinates.")
-
-
-# To play, just create a Hexplode instance and call play
-game = Hexplode()
-game.play()
+            print("Invalid move: ", node, " for Player: ", player)
