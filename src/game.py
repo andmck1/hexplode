@@ -30,8 +30,8 @@ class Hexplode:
                 yield (x, y, z)
 
     @staticmethod
-    def hexagonal_neighbors(x, y, z):
-        """Yield the neighbors of a given hexagon cell in cube coordinates."""
+    def hexagonal_neighbours(x, y, z, size):
+        """Yield the neighbours of a given hexagon cell in cube coordinates."""
         # Six possible directions for a hex cell
         directions = [
             (+1, -1, 0),
@@ -42,7 +42,9 @@ class Hexplode:
             (0, -1, +1),
         ]
         for dx, dy, dz in directions:
-            yield (x + dx, y + dy, z + dz)
+            neighbour = (x + dx, y + dy, z + dz)
+            if size not in tuple(map(abs, neighbour)):
+                yield neighbour
 
     @staticmethod
     def cubic_to_pixel(x, y, z):
@@ -50,7 +52,8 @@ class Hexplode:
 
     @staticmethod
     def pixel_to_array(x, y, n):
-        return x + n, y + n
+        mid_n = int(np.ceil((n**2) / 2))
+        return x + mid_n, y + mid_n
 
     def create_hexagonal_board(self):
         """Create a DataFrame representing the edges of a hexagonal board."""
@@ -60,7 +63,9 @@ class Hexplode:
         seen = set()
 
         for x, y, z in coords:
-            for node_x, node_y, node_z in self.hexagonal_neighbors(x, y, z):
+            for node_x, node_y, node_z in self.hexagonal_neighbours(
+                x, y, z, size
+            ):
                 if (node_x, node_y, node_z) in coords:
                     edge = tuple(sorted([(x, y, z), (node_x, node_y, node_z)]))
                     if edge not in seen:
