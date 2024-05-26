@@ -52,8 +52,19 @@ class Hexplode:
 
     @staticmethod
     def pixel_to_array(x, y, n):
-        mid_n = int(np.ceil((n**2) / 2))
-        return x + mid_n, y + mid_n
+        x_n = 2 * n - 1
+        y_n = 4 * n - 3
+
+        # could simplify here
+        x_n_mid = int((x_n - 1) / 2)
+        y_n_mid = int((y_n - 1) / 2)
+
+        # for the array we're reflecting the y axis and and using rows and
+        # columns => row ~ -y_pixel; col ~ x_pixel
+        column = x + y_n_mid
+        row = -y + x_n_mid
+
+        return row, column
 
     def create_hexagonal_board(self):
         """Create a DataFrame representing the edges of a hexagonal board."""
