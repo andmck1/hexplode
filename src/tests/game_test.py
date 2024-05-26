@@ -127,3 +127,32 @@ def test_pixel_to_array():
     for size, _, pixel_node, expected_array_coords in test_data:
         array_coords = Hexplode.pixel_to_array(*pixel_node, n=size)
         assert array_coords == expected_array_coords
+
+
+def test_create_hexagonal_board():
+    pass
+
+
+def test_initialise_board_graph():
+    pass
+
+
+def test_create_board():
+    hexplode = Hexplode(size=2)
+    expected_board = (
+        "|.|0|.|0|.|\n"  # fmt: skip
+        "|0|.|0|.|0|\n"  # fmt: skip
+        "|.|0|.|0|.|\n"  # fmt: skip
+    )
+    board = hexplode.create_board()
+
+    hexplode = Hexplode(size=3)
+    expected_board = (
+        "|.|.|0|.|0|.|0|.|.|\n"  # fmt: skip
+        "|.|0|.|0|.|0|.|0|.|\n"  # fmt: skip
+        "|0|.|0|.|0|.|0|.|0|\n"  # fmt: skip
+        "|.|0|.|0|.|0|.|0|.|\n"  # fmt: skip
+        "|.|.|0|.|0|.|0|.|.|\n"  # fmt: skip
+    )
+    board = hexplode.create_board()
+    assert board == expected_board

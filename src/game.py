@@ -92,7 +92,7 @@ class Hexplode:
         g = nx.from_pandas_edgelist(df_edges, create_using=HexCellNode)
         return g
 
-    def display_board(self):
+    def create_board(self):
         g = self.board_graph
         size = self.size
         cubic_nodes = g.nodes()
@@ -102,22 +102,21 @@ class Hexplode:
             map(lambda x: self.pixel_to_array(*x, size), pixel_nodes)
         )
 
-        board = np.full((size * 2 + 1, size * 2 + 1), fill_value=".")
+        board = np.full((size * 2 - 1, size * 4 - 3), fill_value=".")
         for i, (x, y) in enumerate(array_nodes):
-            board[x, y - 1] = "|"
-            board[x, y + 1] = "|"
             board[x, y] = node_data[i][1]["count"]
 
+        board_string = ""
         for row in board:
             for val in row:
-                print(val, end=" ")
-            print()
+                board_string += f"|{val}"
+            board_string += "|\n"
+        return board_string
 
     def explode(self, node):
         g = self.board_graph
         neighbours = g[node]
         for neighbour_node in neighbours:
-            print(neighbour_node)
             g.nodes(data=True)[neighbour_node]["count"] += 1
             g.nodes(data=True)[neighbour_node]["player"] = self.players[
                 self.current_player
@@ -134,7 +133,6 @@ class Hexplode:
         if not is_valid_node:
             return 0
         node_player = g.nodes(data=True)[node]["player"]
-        print(node_player)
         is_valid_player = (node_player is None) or (node_player == player)
         if not is_valid_player:
             return 0
