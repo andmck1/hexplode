@@ -102,16 +102,10 @@ class Hexplode:
             map(lambda x: self.pixel_to_array(*x, size), pixel_nodes)
         )
 
-        board = np.full((size * 2 - 1, size * 4 - 3), fill_value=".")
+        board = np.full((size * 2 - 1, size * 4 - 3), fill_value=None)
         for i, (x, y) in enumerate(array_nodes):
             board[x, y] = node_data[i][1]["count"]
-
-        board_string = ""
-        for row in board:
-            for val in row:
-                board_string += f"|{val}"
-            board_string += "|\n"
-        return board_string
+        return board
 
     def explode(self, node):
         g = self.board_graph
