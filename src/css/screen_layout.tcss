@@ -1,0 +1,19 @@
+Screen {
+    layout: grid;
+    grid-size: 3;
+}
+
+
+
+#board {
+    column-span: 2;
+    row-span: 4;
+}
+
+.player {
+    row-span: 1;
+}
+
+.box {
+    height: 100%;
+}
