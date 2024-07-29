@@ -145,3 +145,15 @@ class Hexplode:
             self.current_player = (self.current_player + 1) % 2
         else:
             print("Invalid move: ", node, " for Player: ", player)
+
+    def display_board(self):
+        board_arr = self.create_board()
+        board_str = ""
+        for row in board_arr:
+            for val in row:
+                if val is not None:
+                    board_str += str(val)
+                else:
+                    board_str += " "
+            board_str += "\n"
+        return board_str

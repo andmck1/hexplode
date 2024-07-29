@@ -5,8 +5,7 @@ from textual.widgets import Static, TextArea
 from textual import events
 from game import Hexplode
 
-
-hexplode = Hexplode(size=2)
+hexplode = Hexplode(size=3)
 
 
 class PlayerPanel(Static):
@@ -28,48 +27,42 @@ class PlayerPanel(Static):
         self.update(Panel(f"[{self.colour}]{self.player_name}: {self.score}"))
 
 
-class BoardPanel(Static):
-    board = ""
-
-    def on_mount(self):
-        self.update_panel()
-
-    def update_panel(self):
-        self.update(Panel("Hello There"))
-
-
 class Board(TextArea):
     def on_key(self, event: events.Key) -> None:
         current_text = self.text.split("\n")
         current_row, current_column = self.cursor_location
+        move_rows = move_columns = 0
         if event.key == "up":
             if current_row - 1 >= 0:
-                if (
-                    current_text[current_row - 1][current_column]
-                    in "0123456789"
-                ):
-                    self.move_cursor_relative(columns=0, rows=-1)
+                if current_column - 1 >= 0:
+                    move_columns = -1
+                    move_rows = -1
+                else:
+                    move_columns = 1
+                    move_rows = -1
         if event.key == "down":
             if current_row + 1 < len(current_text):
-                if (
-                    current_text[current_row + 1][current_column]
-                    in "0123456789"
-                ):
-                    self.move_cursor_relative(columns=0, rows=1)
+                if current_column - 1 >= 0:
+                    move_columns = -1
+                    move_rows = 1
+                else:
+                    move_columns = 1
+                    move_rows = 1
         if event.key == "left":
             if current_column - 2 >= 0:
-                if (
-                    current_text[current_row][current_column - 2]
-                    in "0123456789"
-                ):
-                    self.move_cursor_relative(columns=-2, rows=0)
+                move_columns = -2
+                move_rows = 0
         if event.key == "right":
             if current_column + 2 < len(current_text[current_row]):
-                if (
-                    current_text[current_row][current_column + 2]
-                    in "0123456789"
-                ):
-                    self.move_cursor_relative(columns=2, rows=0)
+                move_columns = 2
+                move_rows = 0
+        if (
+            current_text[current_row + move_rows][
+                current_column + move_columns
+            ]
+            in "0123456789"
+        ):
+            self.move_cursor_relative(columns=move_columns, rows=move_rows)
         if event.key == "enter":
             self.move_cursor((0, 0))
         event.prevent_default()
@@ -88,9 +81,12 @@ class Screen(App):
     board: Board | None = None
 
     def compose(self) -> ComposeResult:
-        self.board = Board("|0|0|0|\n|0|0|0|\n|0|0|0|", read_only=True)
+        self.board = Board(hexplode.display_board(), read_only=True)
         self.board.cursor_blink = False
-        self.board.cursor_location = (0, 1)
+        self.board.cursor_location = (
+            hexplode.size - 1,
+            hexplode.size + hexplode.size - 2,
+        )
         yield self.board
         yield self.player_1
         yield self.player_2
