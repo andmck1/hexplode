@@ -4,6 +4,7 @@ from textual.reactive import reactive, Reactive
 from textual.widgets import Static, TextArea
 from textual import events
 from game import Hexplode
+from textual import log
 
 hexplode = Hexplode(size=3)
 
@@ -64,7 +65,16 @@ class Board(TextArea):
         ):
             self.move_cursor_relative(columns=move_columns, rows=move_rows)
         if event.key == "enter":
-            self.move_cursor((0, 0))
+            log(current_row, current_column)
+            array_row = current_row
+            array_column = current_column
+            pixel_coords = hexplode.array_to_pixel(
+                array_row, array_column, hexplode.size
+            )
+            cubic_coords = hexplode.pixel_to_cubic(*pixel_coords)
+            hexplode.make_move(cubic_coords)
+            self.text = hexplode.display_board()
+            self.move_cursor((current_row, current_column))
         event.prevent_default()
 
 

@@ -1,4 +1,6 @@
 from rich.panel import Panel
+from rich.text import Text
+from textual.widgets import TextArea
 from textual.app import App, ComposeResult
 from textual.reactive import reactive, Reactive
 from textual.widgets import Static
@@ -46,9 +48,10 @@ class Screen(App):
     )
 
     def compose(self) -> ComposeResult:
-        yield self.board
-        yield self.player_1
-        yield self.player_2
+        text = Text("hello there!")
+        text.stylize("bold red")
+ 
+        yield TextArea(text)
 
     def on_key(self, event: Key) -> None:
         if event.key == "space":

@@ -51,6 +51,14 @@ class Hexplode:
         return (x - y, -x - y)
 
     @staticmethod
+    def pixel_to_cubic(x_pixel, y_pixel):
+        x_cubic = int((x_pixel - y_pixel) / 2)
+        y_cubic = int((-x_pixel - y_pixel) / 2)
+        z_cubic = y_pixel
+
+        return (x_cubic, y_cubic, z_cubic)
+
+    @staticmethod
     def pixel_to_array(x, y, n):
         x_n = 2 * n - 1
         y_n = 4 * n - 3
@@ -65,6 +73,20 @@ class Hexplode:
         row = -y + x_n_mid
 
         return row, column
+
+    @staticmethod
+    def array_to_pixel(row, column, n):
+        x_n = 2 * n - 1
+        y_n = 4 * n - 3
+
+        # could simplify here
+        x_n_mid = int((x_n - 1) / 2)
+        y_n_mid = int((y_n - 1) / 2)
+
+        x = column - y_n_mid
+        y = -row + x_n_mid
+
+        return x, y
 
     def create_hexagonal_board(self):
         """Create a DataFrame representing the edges of a hexagonal board."""
@@ -107,19 +129,22 @@ class Hexplode:
             board[x, y] = node_data[i][1]["count"]
         return board
 
-    def explode(self, node):
+    def explode(self, node, exploded_nodes=[]):
+        exploded_nodes.append(node)
         g = self.board_graph
+        g.nodes(data=True)[node]["count"] = 1
         neighbours = g[node]
         for neighbour_node in neighbours:
-            g.nodes(data=True)[neighbour_node]["count"] += 1
-            g.nodes(data=True)[neighbour_node]["player"] = self.players[
-                self.current_player
-            ]
-            neighbour_node_neighbours = g.nodes[neighbour_node]
-            if g.nodes(data=True)[neighbour_node]["count"] > len(
-                neighbour_node_neighbours
-            ):
-                self.explode(neighbour_node)
+            if neighbour_node not in exploded_nodes:
+                g.nodes(data=True)[neighbour_node]["count"] += 1
+                g.nodes(data=True)[neighbour_node]["player"] = self.players[
+                    self.current_player
+                ]
+                neighbour_node_neighbours = g.nodes[neighbour_node]
+                if g.nodes(data=True)[neighbour_node]["count"] > len(
+                    neighbour_node_neighbours
+                ):
+                    self.explode(neighbour_node)
 
     def valid_move(self, node, player):
         g = self.board_graph
@@ -140,7 +165,6 @@ class Hexplode:
             g.nodes(data=True)[node]["player"] = player
             neighbours = g[node]
             if g.nodes(data=True)[node]["count"] > len(neighbours):
-                g.nodes(data=True)[node]["count"] = 1
                 self.explode(node)
             self.current_player = (self.current_player + 1) % 2
         else:
