@@ -1,9 +1,10 @@
 from time import monotonic
 from rich.panel import Panel
-from textual.app import App, ComposeResult
+from textual.app import App, ComposeResult, RenderResult
 from textual.events import Key
-from textual.widgets import TextArea, Static
+from textual.widgets import Static
 from textual.reactive import reactive
+from rich.text import Text
 
 
 class TimeDisplay(Static):
@@ -28,47 +29,40 @@ class TimeDisplay(Static):
             )
 
 
-class WeirdSelect(TextArea):
-    def on_mount(self) -> None:
-        self.text = "X|O|X\n" " |X|O\n" "X|O|O"
-        self.read_only = True
-        self.cursor_blink = False
+class CustomTextBox(Static, can_focus=True):
+    cursor_position: int
+
+    def __init__(self, text: Text = Text("hello there"), **kwargs):
+        super().__init__(**kwargs)
+        self.text = text
+        self.cursor_position = len(self.text)
+        self.update_text_with_cursor()
 
     def on_key(self, event: Key) -> None:
-        if event.key == "enter":
-            cursor_location = self.cursor_location
-            text = list(map(list, self.text.split("\n")))
+        if event.key == "left":
+            self.cursor_position = max(0, self.cursor_position - 1)
+        elif event.key == "right":
+            self.cursor_position = min(
+                len(self.text), self.cursor_position + 1
+            )
+        elif event.key == "enter":
+            self.text = Text("general kenobi")
 
-            cursor_row = cursor_location[0]
-            cursor_col = cursor_location[1]
-            if (cursor_row >= len(text[0])) or (cursor_col >= len(text[1])):
-                return None
+    def update_text_with_cursor(self) -> None:
+        line = self.text
+        cursor_position = self.cursor_position
+        line.stylize("bold magenta", cursor_position, cursor_position + 1)
+        self.text = line
 
-            options = ["X", "O"]
-            current_option = text[cursor_row][cursor_col]
-            next_option = options[(options.index(current_option) + 1) % 2]
-
-            text[cursor_row][cursor_col] = next_option
-            text = "\n".join(map(lambda text_row: "".join(text_row), text))
-            self.text = text
+    def render(self) -> RenderResult:
+        return self.text
 
 
-class Stopwatch(Static):
+class TestApp(App):
     def compose(self) -> ComposeResult:
-        yield TimeDisplay()
-
-
-class StopwatchApp(App):
-    def compose(self) -> ComposeResult:
-        yield Stopwatch()
-        yield WeirdSelect()
-
-    def on_key(self, event: Key) -> None:
-        if event.key == "space":
-            timedisplay = self.query_one(TimeDisplay)
-            timedisplay.pause = not timedisplay.pause
+        yield CustomTextBox()
 
 
 if __name__ == "__main__":
-    app = StopwatchApp()
+    app = TestApp()
     app.run()

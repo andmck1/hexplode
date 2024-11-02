@@ -50,8 +50,8 @@ class Screen(App):
     def compose(self) -> ComposeResult:
         text = Text("hello there!")
         text.stylize("bold red")
- 
-        yield TextArea(text)
+
+        yield TextArea("\033[0\033[0m", read_only=True)
 
     def on_key(self, event: Key) -> None:
         if event.key == "space":
