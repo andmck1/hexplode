@@ -1,4 +1,5 @@
 from time import monotonic
+from rich.containers import Lines
 from rich.panel import Panel
 from textual.app import App, ComposeResult, RenderResult
 from textual.events import Key
@@ -30,29 +31,47 @@ class TimeDisplay(Static):
 
 
 class CustomTextBox(Static, can_focus=True):
-    cursor_position: int
+    cursor_column: int
+    cursor_row: int
+    text: reactive[Text] = reactive(Text("hello there"))
 
-    def __init__(self, text: Text = Text("hello there"), **kwargs):
+    def __init__(
+        self, text: Text = Text("hello there\ngeneral kenobi"), **kwargs
+    ):
         super().__init__(**kwargs)
         self.text = text
-        self.cursor_position = len(self.text)
+        self.cursor_column = 0
+        self.cursor_row = 0
         self.update_text_with_cursor()
 
     def on_key(self, event: Key) -> None:
+        lines = self.get_lines()
+        cursor_row = self.cursor_row
+        current_line = lines[cursor_row]
+
         if event.key == "left":
-            self.cursor_position = max(0, self.cursor_position - 1)
+            self.cursor_column = max(0, self.cursor_column - 1)
         elif event.key == "right":
-            self.cursor_position = min(
-                len(self.text), self.cursor_position + 1
+            self.cursor_column = min(
+                len(current_line) - 1, self.cursor_column + 1
             )
-        elif event.key == "enter":
-            self.text = Text("general kenobi")
+        elif event.key == "up":
+            self.cursor_row = max(0, self.cursor_row - 1)
+        elif event.key == "down":
+            self.cursor_row = min(len(lines) - 1, self.cursor_row + 1)
+        self.update_text_with_cursor()
 
     def update_text_with_cursor(self) -> None:
-        line = self.text
-        cursor_position = self.cursor_position
-        line.stylize("bold magenta", cursor_position, cursor_position + 1)
-        self.text = line
+        lines = self.get_lines()
+        cursor_column = self.cursor_column
+        cursor_row = self.cursor_row
+        _ = [line.stylize("not reverse", 0, len(self.text)) for line in lines]
+        lines[cursor_row].stylize("reverse", cursor_column, cursor_column + 1)
+        self.text = Text("\n").join(lines)
+        self.refresh()
+
+    def get_lines(self) -> Lines:
+        return self.text.split("\n")
 
     def render(self) -> RenderResult:
         return self.text

@@ -1,6 +1,10 @@
 import numpy as np
 import pandas as pd
 import networkx as nx
+from rich.text import Text
+
+
+PLAYER_STYLES = {None: "none", "Player 1": "red", "Player 2": "blue"}
 
 
 class HexCellNode(nx.Graph):
@@ -125,9 +129,11 @@ class Hexplode:
         )
 
         board = np.full((size * 2 - 1, size * 4 - 3), fill_value=None)
+        player = np.full((size * 2 - 1, size * 4 - 3), fill_value=None)
         for i, (x, y) in enumerate(array_nodes):
             board[x, y] = node_data[i][1]["count"]
-        return board
+            player[x, y] = node_data[i][1]["player"]
+        return board, player
 
     def explode(self, node, exploded_nodes=[]):
         exploded_nodes.append(node)
@@ -170,14 +176,17 @@ class Hexplode:
         else:
             print("Invalid move: ", node, " for Player: ", player)
 
-    def display_board(self):
-        board_arr = self.create_board()
-        board_str = ""
-        for row in board_arr:
-            for val in row:
-                if val is not None:
-                    board_str += str(val)
+    def display_board(self) -> Text:
+        board_arr, player_arr = self.create_board()
+        board_rich_text = Text("")
+        for i in range(len(board_arr)):
+            for j in range(len(board_arr[i])):
+                n_counters = board_arr[i][j]
+                player = player_arr[i][j]
+                if n_counters is not None:
+                    player_style = PLAYER_STYLES[player]
+                    board_rich_text.append(str(n_counters), style=player_style)
                 else:
-                    board_str += " "
-            board_str += "\n"
-        return board_str
+                    board_rich_text += " "
+            board_rich_text += "\n"
+        return board_rich_text
