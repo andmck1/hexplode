@@ -2,15 +2,15 @@ from rich.panel import Panel
 from rich.text import Text
 from rich.containers import Lines
 
+from textual import on, work, log
 from textual.app import App, ComposeResult, RenderResult
 from textual.events import Key
+from textual.message import Message
 from textual.reactive import reactive, Reactive
-from textual.widgets import Static, TextArea
-from textual import events
+from textual.widgets import Static, Label
+from textual.screen import Screen
 
 from game import Hexplode
-
-hexplode = Hexplode(size=3)
 
 
 class PlayerPanel(Static):
@@ -32,17 +32,37 @@ class PlayerPanel(Static):
         self.update(Panel(f"[{self.colour}]{self.player_name}: {self.score}"))
 
 
-class BoardTextBox(Static, can_focus=True):
+class WinnerScreen(Screen[bool]):
+    def __init__(self, winner):
+        super().__init__()
+        self.winner = winner
+
+    def compose(self) -> ComposeResult:
+        message = self.winner + Text(" wins! Play again? yn")
+        yield Label(message, id="winner_label")
+
+    @on(Key)
+    def on_key(self, event: Key) -> None:
+        if event.key == "n":
+            self.dismiss(False)
+        elif event.key == "y":
+            self.dismiss(True)
+
+
+class Board(Static, can_focus=True):
     cursor_column: int
     cursor_row: int
     text: reactive[Text] = reactive(Text(""))
+    hexplode: Hexplode
 
-    def __init__(self, text: Text, **kwargs):
+    class Win(Message):
+        def __init__(self, winner: str) -> None:
+            self.winner = winner
+            super().__init__()
+
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.text = text
-        self.cursor_column = 2
-        self.cursor_row = 0
-        self.update_text_with_cursor()
+        self.reset()
 
     def on_key(self, event: Key) -> None:
         lines = self.get_lines()
@@ -74,12 +94,16 @@ class BoardTextBox(Static, can_focus=True):
             if str(current_text) in "0123456789":
                 array_row = cursor_row
                 array_column = cursor_column
-                pixel_coords = hexplode.array_to_pixel(
-                    array_row, array_column, hexplode.size
+                pixel_coords = self.hexplode.array_to_pixel(
+                    array_row, array_column, self.hexplode.size
                 )
-                cubic_coords = hexplode.pixel_to_cubic(*pixel_coords)
-                hexplode.make_move(cubic_coords)
-                self.text = hexplode.display_board()
+                cubic_coords = self.hexplode.pixel_to_cubic(*pixel_coords)
+                self.hexplode.make_move(cubic_coords)
+                self.text = self.hexplode.display_board()
+                winner = self.hexplode.winner
+                if winner is not None:
+                    self.post_message(self.Win(winner))
+
         self.update_text_with_cursor()
 
     def update_text_with_cursor(self) -> None:
@@ -94,57 +118,15 @@ class BoardTextBox(Static, can_focus=True):
     def get_lines(self) -> Lines:
         return self.text.split("\n")
 
+    def reset(self):
+        self.hexplode = Hexplode(size=2)
+        self.text = self.hexplode.display_board()
+        self.cursor_column = 1
+        self.cursor_row = 0
+        self.update_text_with_cursor()
+
     def render(self) -> RenderResult:
         return self.text
-
-
-class Board(TextArea):
-    def on_key(self, event: events.Key) -> None:
-        current_text = self.text.split("\n")
-        current_row, current_column = self.cursor_location
-        move_rows = move_columns = 0
-        if event.key == "up":
-            if current_row - 1 >= 0:
-                if current_column - 1 >= 0:
-                    move_columns = -1
-                    move_rows = -1
-                else:
-                    move_columns = 1
-                    move_rows = -1
-        if event.key == "down":
-            if current_row + 1 < len(current_text):
-                if current_column - 1 >= 0:
-                    move_columns = -1
-                    move_rows = 1
-                else:
-                    move_columns = 1
-                    move_rows = 1
-        if event.key == "left":
-            if current_column - 2 >= 0:
-                move_columns = -2
-                move_rows = 0
-        if event.key == "right":
-            if current_column + 2 < len(current_text[current_row]):
-                move_columns = 2
-                move_rows = 0
-        if (
-            current_text[current_row + move_rows][
-                current_column + move_columns
-            ]
-            in "0123456789"
-        ):
-            self.move_cursor_relative(columns=move_columns, rows=move_rows)
-        if event.key == "enter":
-            array_row = current_row
-            array_column = current_column
-            pixel_coords = hexplode.array_to_pixel(
-                array_row, array_column, hexplode.size
-            )
-            cubic_coords = hexplode.pixel_to_cubic(*pixel_coords)
-            hexplode.make_move(cubic_coords)
-            self.text = hexplode.display_board()
-            self.move_cursor((current_row, current_column))
-        event.prevent_default()
 
 
 class Screen(App):
@@ -156,17 +138,28 @@ class Screen(App):
     player_2: PlayerPanel = PlayerPanel(
         player_name="lonk", colour="blue", classes="player"
     )
-    board: BoardTextBox | None = None
+    board: Board = Board()
 
     def compose(self) -> ComposeResult:
-        self.board = BoardTextBox(hexplode.display_board())
         yield self.board
         yield self.player_1
         yield self.player_2
 
-    def on_key(self, event: events.Key) -> None:
-        if event.key == "space":
+    @work
+    async def on_board_win(self, winner_event: Board.Win) -> None:
+        if winner_event.winner == "Player 1":
             self.player_1.increment_score()
+        elif winner_event.winner == "Player 2":
+            self.player_2.increment_score()
+        else:
+            log("Error, player not found")
+
+        if await self.push_screen_wait(
+            WinnerScreen(Text(f"[red]{winner_event.winner}[/red]"))
+        ):
+            self.board.reset()
+        else:
+            self.app.exit()
 
 
 if __name__ == "__main__":

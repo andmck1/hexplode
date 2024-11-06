@@ -3,6 +3,14 @@ Screen {
     grid-size: 3;
 }
 
+WinnerScreen {
+    background: rgba(0,0,0,0.5);
+    align: center middle;
+}
+
+#winner_label {
+    border: round $success;
+}
 
 
 #board {

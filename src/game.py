@@ -22,6 +22,7 @@ class Hexplode:
         self.board_graph = self.initialise_board_graph()
         self.players = ["Player 1", "Player 2"]
         self.current_player = 0
+        self.winner = None
 
     @staticmethod
     def hexagonal_coordinates(n):
@@ -175,6 +176,21 @@ class Hexplode:
             self.current_player = (self.current_player + 1) % 2
         else:
             print("Invalid move: ", node, " for Player: ", player)
+        self.winner = self.check_win()
+
+    def check_win(self) -> str | None:
+        player_counts = {"Player 1": 0, "Player 2": 0, None: 0}
+        node_data = list(self.board_graph.nodes(data=True))
+        n_nodes = len(node_data)
+        for node in node_data:
+            player_to_count = node[1]["player"]
+            player_counts[player_to_count] += 1
+        if player_counts["Player 1"] == n_nodes:
+            return "Player 1"
+        elif player_counts["Player 2"] == n_nodes:
+            return "Player 2"
+        else:
+            return None
 
     def display_board(self) -> Text:
         board_arr, player_arr = self.create_board()
